@@ -1,0 +1,17 @@
+# Python 自动生成的缓存
+__pycache__/
+*.pyc
+
+# SQLite 数据库文件（里面有用户数据，不能公开）
+diary.db
+
+# 虚拟环境（放依赖的文件夹）
+venv/
+.venv/
+
+# IDE 配置文件
+.vscode/
+.idea/
+
+# 环境变量文件（存 API Key 的，绝对不能上传）
+.env

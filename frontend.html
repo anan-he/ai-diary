@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌱 AI 智能日记</title>
+<style>
+/* ========== 全局样式（CSS 变量 + 基础样式） ========== */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#faf7f2;              /* 页面背景色：暖白 */
+  --card:#fffefb;            /* 卡片背景色 */
+  --text:#3d3226;            /* 主文字颜色：深棕 */
+  --sub:#8c7b6b;             /* 次要文字颜色 */
+  --accent:#6d9b6a;          /* 主题色：柔和绿 */
+  --accent-light:#8ab587;    /* 主题色浅色版 */
+  --danger:#c97d6b;          /* 危险操作颜色：柔和红 */
+  --shadow:0 2px 12px rgba(100,80,50,.06);  /* 统一阴影 */
+  --radius:16px;--radius-sm:12px;
+  --font:"-apple-system","PingFang SC","Microsoft YaHei",sans-serif;  /* 系统默认中文字体 */
+}
+body{
+  font-family:var(--font);
+  /* 渐变背景：三层叠加，营造温暖柔和的氛围 */
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(139,181,135,.10) 0%, transparent 60%),
+    linear-gradient(175deg, #f1faf350, #edf5e8, #f7edf2);
+  background-attachment:fixed;  /* 背景固定，滚动时不移动 */
+  min-height:100vh;color:var(--text);line-height:1.6;
+  padding:20px 16px 40px;
+}
+.container{max-width:520px;margin:0 auto}  /* 居中的内容容器，最大宽度 520px */
+
+/* ========== 头部 ========== */
+.header{text-align:center;margin-bottom:20px}
+.header h1{font-size:26px;color:var(--accent)}
+.header p{font-size:13px;color:var(--sub);margin-top:4px}
+
+/* ========== 卡片容器 ========== */
+.card{
+  background:var(--card);border-radius:var(--radius);padding:18px;
+  margin-bottom:14px;box-shadow:var(--shadow);
+  border:1px solid rgba(200,180,150,.1);  /* 极淡的边框，增加层次感 */
+}
+.card h2{font-size:16px;margin-bottom:12px}
+
+/* ========== 输入框和文本域 ========== */
+input,textarea{
+  width:100%;padding:12px 15px;border:1.5px solid #e5ded4;
+  border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);
+  color:var(--text);background:#fdfdfb;margin-bottom:10px;
+}
+input:focus,textarea:focus{
+  outline:none;border-color:var(--accent);  /* 聚焦时边框变绿 */
+  box-shadow:0 0 0 3px rgba(109,155,106,.08);  /* 聚焦时外发光 */
+}
+textarea{resize:vertical;min-height:100px}  /* 只能上下拉伸，不能左右拉 */
+
+/* ========== 按钮 ========== */
+.btn{
+  padding:11px 28px;border:none;border-radius:22px;font-size:14px;font-weight:600;
+  cursor:pointer;font-family:var(--font);transition:all .2s;
+  background:linear-gradient(135deg,var(--accent),var(--accent-light));  /* 渐变绿色背景 */
+  color:#fff;box-shadow:0 2px 8px rgba(109,155,106,.18);
+}
+.btn:hover{transform:translateY(-1px)}  /* 悬停时微微上浮 */
+.btn:active{transform:scale(.96)}       /* 点击时微微缩小 */
+.btn-sm{padding:6px 16px;font-size:13px}  /* 小按钮 */
+.btn-outline{
+  background:transparent;border:1.5px solid var(--danger);
+  color:var(--danger);box-shadow:none;  /* 透明背景的轮廓按钮，用于删除等危险操作 */
+}
+
+/* ========== 心情选择 ========== */
+.mood-row{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}  /* flex 弹性布局，自动换行 */
+.mood-btn{
+  padding:6px 14px;border-radius:18px;border:1.5px solid #e5ded4;
+  background:#fff;cursor:pointer;font-size:16px;transition:all .2s;
+}
+.mood-btn.selected{background:var(--accent);border-color:var(--accent);color:#fff}  /* 选中的心情高亮 */
+
+/* ========== 日记条目 ========== */
+.diary-item{
+  background:linear-gradient(160deg,#fdfbf7,#f8f4ec);  /* 斜向渐变，模拟纸张质感 */
+  border-radius:var(--radius-sm);padding:15px;margin-bottom:10px;
+  border-left:3px solid rgba(139,181,135,.25);  /* 左边有绿色装饰条 */
+  position:relative;  /* 让绝对定位的心情 emoji 相对于这个容器 */
+}
+.diary-title{font-size:15px;font-weight:600;margin-bottom:4px}
+.diary-content{font-size:13px;line-height:1.7;white-space:pre-wrap;margin-bottom:6px}  /* pre-wrap: 保留换行 */
+.diary-meta{font-size:11px;color:var(--sub)}  /* 日期和删除链接 */
+.diary-mood{font-size:20px;position:absolute;right:14px;top:14px}  /* 心情 emoji 放在右上角 */
+
+/* ========== AI 反馈气泡 ========== */
+.ai-feedback{
+  background:linear-gradient(142deg,#f7f4ee,#f0ebe0);border-radius:10px;
+  padding:10px 14px;margin-top:8px;font-size:13px;color:#6b5e4a;
+  line-height:1.7;border-left:3px solid rgba(200,157,74,.3);  /* 左边金色装饰条 */
+}
+.ai-feedback::before{
+  content:'🤖 AI 回复';font-size:11px;color:var(--sub);
+  font-weight:600;display:block;margin-bottom:2px;  /* 在 AI 回复前显示标题 */
+}
+
+/* ========== 统计卡片 ========== */
+.stats{display:flex;gap:10px;margin-bottom:14px}
+.stat-item{
+  flex:1;text-align:center;background:var(--card);
+  border-radius:var(--radius-sm);padding:14px 8px;box-shadow:var(--shadow);
+}
+.stat-num{font-size:26px;font-weight:700;color:var(--accent)}  /* 统计数字用绿色 */
+.stat-label{font-size:11px;color:var(--sub)}
+
+/* ========== 顶栏 ========== */
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.topbar .user{font-size:13px;color:var(--sub)}
+
+/* ========== AI 分析卡片 ========== */
+.analyze-card{background:linear-gradient(142deg,#faf7f0,#f4efe4);text-align:center}
+.analyze-result{
+  margin-top:12px;padding:12px 16px;background:#fffefb;
+  border-radius:10px;font-size:13px;line-height:1.8;display:none;  /* 默认隐藏，分析完才显示 */
+}
+
+/* ========== 加载动画 ========== */
+.spinner{
+  display:inline-block;width:20px;height:20px;border:2px solid #ddd;
+  border-top-color:var(--accent);border-radius:50%;  /* 圆形边框，上方是绿色 */
+  animation:spin .6s linear infinite;  /* 无限旋转 */
+  margin-right:8px;vertical-align:middle;
+}
+@keyframes spin{to{transform:rotate(360deg)}}  /* 旋转动画：从 0 度到 360 度 */
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ========== 登录/注册页（默认显示）========== -->
+<div id="authPage">
+  <div class="header" style="margin-top:40px">
+    <h1>🌱 AI 智能日记</h1>
+    <p>用温柔的文字，记录每一天</p>
+  </div>
+
+  <div class="card">
+    <h2 id="authTitle">登录</h2>
+    <input type="text" id="authUsername" placeholder="用户名">
+    <input type="password" id="authPassword" placeholder="密码">
+    <button class="btn" onclick="handleAuth()" style="width:100%" id="authBtn">登 录</button>
+    <div style="text-align:center;margin-top:12px;font-size:13px;color:var(--sub)">
+      <span id="authSwitchText">还没有账号？</span>
+      <a href="#" onclick="toggleAuth()" style="color:var(--accent);text-decoration:none" id="authSwitchLink">去注册</a>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 主界面（登录后才显示）========== -->
+<div id="mainPage" style="display:none">  <!-- 默认隐藏，登录成功后 JS 改为 display:block -->
+
+  <div class="header">
+    <h1>🌱 AI 智能日记</h1>
+    <div class="topbar" style="justify-content:center">
+      <span class="user">👤 <span id="displayName">--</span> · <a href="#" onclick="logout()" style="color:var(--danger);text-decoration:none">退出</a></span>
+    </div>
+  </div>
+
+  <!-- 统计栏 -->
+  <div class="stats">
+    <div class="stat-item"><div class="stat-num" id="totalCount">0</div><div class="stat-label">📖 我的日记</div></div>
+    <div class="stat-item" onclick="showAnalyze()" style="cursor:pointer">
+      <div style="font-size:24px">🤖</div><div class="stat-label">AI 分析心情</div>
+    </div>
+  </div>
+
+  <!-- AI 心情分析卡片（默认收起） -->
+  <div class="card analyze-card" id="analyzeCard" style="display:none">
+    <h2>🤖 心情分析</h2>
+    <textarea id="analyzeInput" rows="2" placeholder="写下你现在的心情……"></textarea>
+    <button class="btn btn-sm" onclick="analyzeText()">分析</button>
+    <div class="analyze-result" id="analyzeResult"></div>  <!-- 分析结果在这里显示 -->
+  </div>
+
+  <!-- 写日记卡片 -->
+  <div class="card">
+    <h2>✍️ 写日记</h2>
+    <input type="text" id="diaryTitle" placeholder="标题">
+    <textarea id="diaryContent" rows="3" placeholder="今天发生了什么呢……"></textarea>
+    <div style="font-size:13px;color:var(--sub);margin-bottom:6px">心情：</div>
+    <div class="mood-row" id="moodRow">
+      <span class="mood-btn" onclick="selectMood('😊',this)">😊 开心</span>
+      <span class="mood-btn" onclick="selectMood('😌',this)">😌 平静</span>
+      <span class="mood-btn" onclick="selectMood('😢',this)">😢 难过</span>
+      <span class="mood-btn" onclick="selectMood('😤',this)">😤 烦躁</span>
+      <span class="mood-btn selected" onclick="selectMood('😐',this)">😐 一般</span>  <!-- 默认选中 -->
+    </div>
+    <button class="btn" id="saveBtn" onclick="saveDiary()">💾 保存 → AI 分析</button>
+  </div>
+
+  <!-- 日记列表渲染在这里 -->
+  <div id="diaryList"></div>
+</div>
+
+</div>
+
+<script>
+// ==================== 全局变量 ====================
+const API = 'http://127.0.0.1:9000/api';  // 后端 API 基础地址
+let selectedMood = '😐';                    // 当前选中的心情 emoji
+let authMode = 'login';                    // 当前认证模式：'login' 或 'register'
+let editingId = null;                      // 正在编辑的日记 id，null 表示新建模式
+
+// ==================== 认证相关函数 ====================
+
+// Token 管理：存在浏览器 localStorage 里，关闭浏览器也不会丢
+function getToken(){ return localStorage.getItem('diary_token'); }
+function setToken(t){ localStorage.setItem('diary_token',t); }
+function clearToken(){ localStorage.removeItem('diary_token'); }
+
+// 切换登录/注册页面
+function toggleAuth(){
+  authMode = authMode==='login' ? 'register' : 'login';  // 登录 ⇄ 注册
+  // 根据模式切换界面文字
+  document.getElementById('authTitle').textContent = authMode==='login' ? '登录' : '注册';
+  document.getElementById('authBtn').textContent = authMode==='login' ? '登 录' : '注 册';
+  document.getElementById('authSwitchText').textContent = authMode==='login' ? '还没有账号？' : '已有账号？';
+  document.getElementById('authSwitchLink').textContent = authMode==='login' ? '去注册' : '去登录';
+  // 清空输入框
+  document.getElementById('authUsername').value = '';
+  document.getElementById('authPassword').value = '';
+}
+
+// 处理登录/注册按钮点击
+async function handleAuth(){
+  const username = document.getElementById('authUsername').value.trim();  // trim() 去掉首尾空格
+  const password = document.getElementById('authPassword').value.trim();
+  if(!username || !password){ alert('请填写用户名和密码'); return; }
+
+  // 根据当前模式决定调登录接口还是注册接口
+  const endpoint = authMode==='login' ? '/login' : '/register';
+  try{
+    const r = await fetch(API+endpoint, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},  // 告诉后端"我发的是 JSON"
+      body: JSON.stringify({username, password})    // 把 JS 对象转成 JSON 字符串
+    });
+    const d = await r.json();  // 解析后端返回的 JSON
+    if(d.error){ alert(d.error); return; }
+
+    if(d.token){
+      // 登录成功：保存 token，切换界面
+      setToken(d.token);
+      document.getElementById('displayName').textContent = d.username;  // 显示用户名
+      document.getElementById('authPage').style.display = 'none';       // 隐藏登录页
+      document.getElementById('mainPage').style.display = 'block';      // 显示主页
+      loadDiaries();  // 加载日记列表
+      updateStats();  // 更新统计
+    } else {
+      // 注册成功（没有 token 返回）
+      alert(d.message || '操作成功');
+      if(authMode==='register'){
+        toggleAuth();  // 切回登录页
+        document.getElementById('authUsername').value=username;  // 预填用户名，方便注册后直接登录
+        document.getElementById('authPassword').value='';
+      }
+    }
+  }catch(e){ alert('连接失败，请确认服务器已启动'); }
+}
+
+// 退出登录
+function logout(){
+  clearToken();  // 清除 token
+  document.getElementById('authPage').style.display = 'block';   // 显示登录页
+  document.getElementById('mainPage').style.display = 'none';    // 隐藏主页
+}
+
+// ==================== 日记相关函数 ====================
+
+// 封装 fetch 请求，自动带上 Authorization token（让后端知道是谁在操作）
+async function authFetch(url, options={}){
+  options.headers = options.headers || {};
+  // 在请求头里加上 Bearer token
+  options.headers['Authorization'] = 'Bearer ' + getToken();
+  return fetch(url, options);
+}
+
+// 保存日记（新增 或 修改，根据 editingId 自动判断）
+async function saveDiary(){
+  const title = document.getElementById('diaryTitle').value.trim();
+  const content = document.getElementById('diaryContent').value.trim();
+  if(!title || !content){ alert('请填写标题和内容'); return; }
+
+  const btn = document.getElementById('saveBtn');
+  const isEdit = editingId !== null;  // editingId 有值 = 编辑模式
+
+  btn.textContent = isEdit ? '⏳ 更新中……' : '⏳ AI 分析中……';
+  btn.disabled = true;
+
+  try{
+    // 编辑模式：调 PUT；新建模式：调 POST（只有新建才有 AI 分析）
+    const url = isEdit ? API+'/diaries/'+editingId : API+'/diaries';
+    const method = isEdit ? 'PUT' : 'POST';
+    const r = await authFetch(url, {
+      method: method,
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({title, content, mood: selectedMood})
+    });
+    const d = await r.json();
+    if(d.error){ alert(d.error); return; }
+
+    // 清空表单，退出编辑模式
+    resetForm();
+    loadDiaries();
+    if(!isEdit) updateStats();
+    if(isEdit){
+      alert('✅ 日记已更新！');
+    } else {
+      alert('✅ 日记已保存！\n\n🤖 AI 回复：\n' + (d.ai_feedback || '无'));
+    }
+  }catch(e){ alert('保存失败'); }
+  finally{
+    btn.textContent = isEdit ? '💾 保存 → AI 分析' : '💾 保存 → AI 分析';
+    btn.disabled = false;
+  }
+}
+
+// 编辑日记：把旧内容填回表单，切换按钮到编辑模式
+function editDiary(id, title, content, mood){
+  editingId = id;
+  document.getElementById('diaryTitle').value = title;
+  document.getElementById('diaryContent').value = content;
+  // 更新心情选中状态
+  selectedMood = mood || '😐';
+  document.querySelectorAll('#moodRow .mood-btn').forEach(function(b){
+    b.classList.remove('selected');  // 先全部取消
+    if(b.textContent.trim().startsWith(mood)) b.classList.add('selected');  // 匹配的加回去
+  });
+  document.getElementById('saveBtn').textContent = '✏️ 更新日记';
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// 重置表单（清空输入、退出编辑模式）
+function resetForm(){
+  editingId = null;
+  document.getElementById('diaryTitle').value = '';
+  document.getElementById('diaryContent').value = '';
+  document.getElementById('saveBtn').textContent = '💾 保存 → AI 分析';
+}
+
+// 加载日记列表
+async function loadDiaries(){
+  const container = document.getElementById('diaryList');
+  try{
+    const r = await authFetch(API+'/diaries?limit=30');  // 最多取 30 条
+    const diaries = await r.json();
+    if(diaries.error){
+      container.innerHTML='<div style="text-align:center;color:var(--sub);padding:20px">请先登录</div>';
+      return;
+    }
+    if(!diaries.length){
+      container.innerHTML='<div style="text-align:center;color:var(--sub);padding:30px">📖 还没有日记，写一篇吧</div>';
+      return;
+    }
+    // 用 map 把每条日记转成 HTML 片段，用 join('') 拼在一起
+    container.innerHTML = diaries.map(d=>`
+      <div class="diary-item">
+        <div class="diary-mood">${d.mood||'😊'}</div>
+        <div class="diary-title">${esc(d.title)}</div>      <!-- esc() 防 XSS 攻击 -->
+        <div class="diary-content">${esc(d.content)}</div>
+        <div class="diary-meta">📅 ${d.created_at} · <a href="#" onclick="editDiary(${d.id},'${esc(d.title).replace(/'/g,"\\'")}','${esc(d.content).replace(/'/g,"\\'")}','${d.mood||'😐'}')" style="color:var(--accent);text-decoration:none;font-size:11px">编辑</a> · <a href="#" onclick="delDiary(${d.id})" style="color:var(--danger);text-decoration:none;font-size:11px">删除</a></div>
+        ${d.ai_feedback ? `<div class="ai-feedback">${esc(d.ai_feedback)}</div>` : ''}  <!-- 有 AI 回复才显示 -->
+      </div>
+    `).join('');  // join('') 把数组所有元素拼成一个大字符串
+  }catch(e){
+    container.innerHTML='<div style="text-align:center;color:var(--danger);padding:20px">⚠️ 无法连接后端</div>';
+  }
+}
+
+// 删除日记
+async function delDiary(id){
+  if(!confirm('确定删除？')) return;  // 弹出确认框，点了取消就不继续
+  await authFetch(API+'/diaries/'+id, {method:'DELETE'});  // 发送 DELETE 请求
+  loadDiaries();   // 刷新列表
+  updateStats();   // 刷新统计
+}
+
+// 更新日记统计
+async function updateStats(){
+  try{
+    const r = await authFetch(API+'/stats');
+    const d = await r.json();
+    if(!d.error) document.getElementById('totalCount').textContent = d.total_diaries;
+  }catch(e){}  // 静默失败，统计不重要
+}
+
+// ==================== AI 分析 ====================
+
+// 展开/收起 AI 分析卡片
+function showAnalyze(){
+  const el = document.getElementById('analyzeCard');
+  el.style.display = el.style.display==='none'?'block':'none';  // 切换显示/隐藏
+}
+
+// AI 分析心情（独立接口，不需登录）
+async function analyzeText(){
+  const content = document.getElementById('analyzeInput').value.trim();
+  if(!content){ alert('请输入内容'); return; }
+
+  const resultEl = document.getElementById('analyzeResult');
+  resultEl.style.display='block';
+  resultEl.innerHTML='<span class="spinner"></span>分析中……';  // 显示加载动画
+
+  try{
+    const r = await fetch(API+'/ai/analyze', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({content})  // 只传心情文字，不需要登录
+    });
+    const d = await r.json();
+    resultEl.innerHTML='🤖 '+esc(d.analysis||d.error||'分析失败');  // esc() 防 XSS
+  }catch(e){ resultEl.innerHTML='连接失败'; }
+}
+
+// ==================== 工具函数 ====================
+
+// 选择心情 emoji
+function selectMood(mood,el){
+  selectedMood=mood;  // 更新全局变量
+  // 移除所有心情按钮的 selected 样式
+  document.querySelectorAll('#moodRow .mood-btn').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');  // 给点击的按钮加上 selected 样式
+}
+
+// HTML 转义：防止用户输入 <script> 等标签造成 XSS 攻击
+function esc(s){
+  return s.replace(/&/g,'&amp;')   // & → &amp;（必须第一个替换）
+          .replace(/</g,'&lt;')    // < → &lt;
+          .replace(/>/g,'&gt;');   // > → &gt;
+}
+
+// ==================== 启动 ====================
+
+// 页面加载完成时执行
+window.onload = function(){
+  if(getToken()){
+    // 有 token，说明之前登录过，直接尝试进主页
+    document.getElementById('authPage').style.display = 'none';
+    document.getElementById('mainPage').style.display = 'block';
+    // 用 /api/me 验证 token 是否还有效
+    authFetch(API+'/me').then(async r=>{
+      const d = await r.json();
+      if(d.error){
+        logout();  // token 过期或无效，退回登录页
+      } else {
+        document.getElementById('displayName').textContent = d.username;  // 显示用户名
+        loadDiaries();  // 加载日记
+        updateStats();   // 加载统计
+      }
+    }).catch(()=>logout());  // 网络错误也退回登录页
+  }
+};
+</script>
+</body>
+</html>
